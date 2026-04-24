@@ -46,8 +46,6 @@ except:
 # -------------------------------
 # Το μυαλό της εφαρμογής
 # -------------------------------
-
-global current_num_decimal
 global default_zero
 
 def add_to_display(char):
@@ -117,14 +115,12 @@ def calculate(calculation_to_do):
 # Κώδικας για το κουμπί C. Άμα χρησιμοποιήσουμε αυτό το function μέσα άλλα function όπως το calculate τα χαλάει,
 # επειδή κάνει το πεδίο read-only πριν προσθέσουμε νέο περιεχόμενο μέσα του
 def clear_display():
-    global current_num_decimal
     global default_zero
 
     calc_display.config(state="normal")
 
     calc_display.delete(0, tk.END)
     calc_display.insert(tk.END, "0")
-    current_num_decimal = False
     default_zero = True
 
     calc_display.config(state="readonly")
@@ -137,11 +133,11 @@ def on_key_press(event):
     key = event.char
     keysym = event.keysym
 
-    if key.isdigit(): # Αν είναι ψηφίο
+    if key and key.isdigit(): # Αν είναι ψηφίο
         add_to_display(key)
     elif keysym == "Return": # Enter
         add_to_display("=")
-    elif key.lower() in ["c", "ψ"]: # C
+    elif keysym.lower() == "c" or key.lower() == "ψ": # C
         clear_display()
     elif keysym in ["plus", "KP_Add"]: # +
         add_to_display("+")
@@ -151,25 +147,27 @@ def on_key_press(event):
         add_to_display("*")
     elif keysym in ["slash", "KP_Divide"]: # /
         add_to_display("/")
+    elif keysym in ["period", "KP_Decimal"]: # /
+        add_to_display(".")
     elif keysym == "BackSpace": # Backspace
-        calc_display.config(state="normal")
+        current = calc_display.get()
+        # Το περιεχόμενο της οθόνης αφού αφαιρέσουμε τον τελευταίο χαρακτήρα
+        new_display = current[:-1]
 
-        new_display_content = calc_display.get()[:-1]
-
-        if (default_zero):
-            # Δεν έχει γράψει ο χρήστης τίποτα στην ουσία, οπότε δεν κάνουμε τίποτα
-            calc_display.config(state="readonly")
-        elif (len(new_display_content) == 1):
-            # Αντικατάσταση του περιεχομένου της οθόνης με default 0
+        # Αν η οθόνη έχει το default 0 ή είναι κενή, ή αν το καινούργιο περιεχόμενο θα 'ναι κενό
+        if default_zero or current in ["", "0"] or new_display == "":
             clear_display()
-            calc_display.config(state="readonly")
-        else: 
-            # Εκκαθάρηση της οθόνης
-            calc_display.delete(0, tk.END)
-            # Και εμφάνιση του περιεχομένου αλλά χωρίς τον τελευταίο χαρακτήρα,
-            # γιατί πατήσαμε backspace
-            calc_display.insert(0, new_display_content)
-            calc_display.config(state="readonly")
+            return
+        
+        # Επιτρέπουμε την αλλαγή περιεχομένου της οθόνης
+        calc_display.config(state="normal")
+        # Εκκαθάρηση της οθόνης
+        calc_display.delete(0, tk.END)
+        # Και εμφάνιση του περιεχομένου αλλά χωρίς τον τελευταίο χαρακτήρα,
+        # γιατί πατήσαμε backspace
+        calc_display.insert(0, new_display)
+        calc_display.config(state="readonly") 
+            
 
 # Βάζουμε το παράθυρο να ελέγχει για πατημένα πλήκτρα. Όταν εντοπίσει πως πατήθηκε ένα, τότε τρέχει το on_key_press() function από πάνω
 main_window.bind("<Key>", on_key_press)
