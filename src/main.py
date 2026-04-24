@@ -81,7 +81,7 @@ def add_to_display(char):
         last_number = re.split(r"[+\-*/]", current)[-1]
 
         # Αν υπάρχει ήδη τελεία σε αυτόν τον αριθμό, δε βάζουμε άλλη
-        if not "." in last_number:
+        if "." not in last_number:
             calc_display.insert(tk.END, char)
     # Κουμπί ίσον
     elif char == "=":
