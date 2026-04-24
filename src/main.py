@@ -2,6 +2,7 @@
 import tkinter as tk # Απλή αλλά και αξιόπιστη βιβλιοθήκη για GUI
 from tkinter import ttk
 from tkinter import messagebox
+import re
 
 # Εισαγωγή του κώδικα απ' το σενάριο python με όνομα "shortcuts_window". Είναι στον ίδιο φάκελο με αυτό το σενάριο
 import shortcuts_window
@@ -45,23 +46,52 @@ except:
 # -------------------------------
 # Το μυαλό της εφαρμογής
 # -------------------------------
+
+global current_num_decimal
+global default_zero
+
 def add_to_display(char):
+    global default_zero
+
+    # Παίρνουμε το τρέχον κείμενο από την οθόνη
     current = calc_display.get()
 
-    # Ορίζουμε την κατάσταση του πεδίου πάνω που προβάλλει την πράξη και το αποτέλεσμά της
+    # Επιτρέπουμε αλλαγές στο πεδίο
     calc_display.config(state="normal")
 
-    if char == "=":
-        calculate(current)
-    else:
-        # Άμα γράφει "Error" το πεδίο, καθάρισέ το πριν γράψεις κάτι άλλο
-        if calc_display.get() == "Error":
+    # Άμα γράφει "Error" το πεδίο, καθάρισέ το πριν γράψεις κάτι άλλο
+    if current == "Error":
+        current = ""
+        calc_display.delete(0, tk.END)
+    # Άμα η οθόνη είναι άδεια ή έχει το default 0
+    elif current == "" or current == "0":
+        # Αν θέλουμε να βάλουμε αριθμό, αντικαθιστούμε το 0 με αυτόν
+        if char.isdigit():
             calc_display.delete(0, tk.END)
+            calc_display.insert(tk.END, char)
+            default_zero = False
+        # Αν πατηθεί τελεία, βάζουμε "0."
+        elif char == ".":
+            calc_display.delete(0, tk.END)
+            calc_display.insert(tk.END, "0.")
+            default_zero = False
+    # Αν ο χαρακτήρας που θέλουμε να βάλουμε είναι τελεία
+    elif char == ".":
+        # Σπάμε την πράξη σε κομμάτια βάση τους τελεστές
+        last_number = re.split(r"[+\-*/]", current)[-1]
 
-        # Τώρα προσθέτουμε τον χαρακτήρα στο πεδίο
+        # Αν υπάρχει ήδη τελεία σε αυτόν τον αριθμό, δε βάζουμε άλλη
+        if not "." in last_number:
+            calc_display.insert(tk.END, char)
+    # Κουμπί ίσον
+    elif char == "=":
+        calculate(current)
+    # Κανονοική εισαγωγή του χαρακτήρα
+    else:
         calc_display.insert(tk.END, char)
+        default_zero = False
 
-    # Τελειώσαμε με την αλλαγή του περιεχομένου από το πεδίο. Μπορούμε να το κάνουμε πάλι read-only! 
+    # Κάνουμε read-only το πεδίο
     calc_display.config(state="readonly")
 
 # Function για τον υπολογισμό μιας πράξης 
@@ -87,34 +117,59 @@ def calculate(calculation_to_do):
 # Κώδικας για το κουμπί C. Άμα χρησιμοποιήσουμε αυτό το function μέσα άλλα function όπως το calculate τα χαλάει,
 # επειδή κάνει το πεδίο read-only πριν προσθέσουμε νέο περιεχόμενο μέσα του
 def clear_display():
+    global current_num_decimal
+    global default_zero
+
     calc_display.config(state="normal")
+
     calc_display.delete(0, tk.END)
+    calc_display.insert(tk.END, "0")
+    current_num_decimal = False
+    default_zero = True
+
     calc_display.config(state="readonly")
 
-
+    
 # -------------------------------
 # Εδώ θα το κάνουμε ώστε να μπορούμε να γράφουμε απ' το πληκτρολόγιο
 # -------------------------------
 def on_key_press(event):
     key = event.char
+    keysym = event.keysym
 
-    if key in "0123456789.+-*/":
+    if key.isdigit(): # Αν είναι ψηφίο
         add_to_display(key)
-    elif event.keysym == "Return":
+    elif keysym == "Return": # Enter
         add_to_display("=")
-    elif event.char.lower() == "c":
+    elif key.lower() in ["c", "ψ"]: # C
         clear_display()
-    elif event.keysym == "BackSpace":
+    elif keysym in ["plus", "KP_Add"]: # +
+        add_to_display("+")
+    elif keysym in ["minus", "KP_Subtract"]: # -
+        add_to_display("-")
+    elif keysym in ["asterisk", "KP_Multiply"]: # *
+        add_to_display("*")
+    elif keysym in ["slash", "KP_Divide"]: # /
+        add_to_display("/")
+    elif keysym == "BackSpace": # Backspace
         calc_display.config(state="normal")
 
-        display_content_without_last_char = calc_display.get()[:-1]
+        new_display_content = calc_display.get()[:-1]
 
-        # Εκκαθάρηση της οθόνης
-        calc_display.delete(0, tk.END)
-        # Και εμφάνιση του περιεχομένου αλλά χωρίς τον τελευταίο χαρακτήρα,
-        # γιατί πατήσαμε backspace
-        calc_display.insert(0, display_content_without_last_char)
-        calc_display.config(state="readonly")
+        if (default_zero):
+            # Δεν έχει γράψει ο χρήστης τίποτα στην ουσία, οπότε δεν κάνουμε τίποτα
+            calc_display.config(state="readonly")
+        elif (len(new_display_content) == 1):
+            # Αντικατάσταση του περιεχομένου της οθόνης με default 0
+            clear_display()
+            calc_display.config(state="readonly")
+        else: 
+            # Εκκαθάρηση της οθόνης
+            calc_display.delete(0, tk.END)
+            # Και εμφάνιση του περιεχομένου αλλά χωρίς τον τελευταίο χαρακτήρα,
+            # γιατί πατήσαμε backspace
+            calc_display.insert(0, new_display_content)
+            calc_display.config(state="readonly")
 
 # Βάζουμε το παράθυρο να ελέγχει για πατημένα πλήκτρα. Όταν εντοπίσει πως πατήθηκε ένα, τότε τρέχει το on_key_press() function από πάνω
 main_window.bind("<Key>", on_key_press)
@@ -170,10 +225,10 @@ button_frame.pack(expand=True,
 
 # Μια λίστα με τη σειρά των κουμπιών και το περιεχόμενό τους
 calc_button_template = [
-    ["7", "8", "9", "/"],
-    ["4", "5", "6", "*"],
-    ["1", "2", "3", "-"],
-    ["+", "0", ".", "="],
+    ["7", "8", "9", "+"],
+    ["4", "5", "6", "-"],
+    ["1", "2", "3", "*"],
+    ["=", "0", ".", "/"],
     ["C"]
 ]
 
@@ -204,6 +259,9 @@ for i in range(5):
 
 for i in range(5):
     button_frame.rowconfigure(i, weight=1)
+
+# Βάζουμε ένα αρχικό 0 στην οθόνη
+clear_display()
 
 # -------------------------------
 # Ήρθε η ώρα να δώσουμε ζωή στην εφαρμογή μας
